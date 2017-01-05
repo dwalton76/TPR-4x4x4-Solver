@@ -1,6 +1,7 @@
 *.class
 
 # Package Files #
+threephase.jar
 *.war
 *.ear
 
