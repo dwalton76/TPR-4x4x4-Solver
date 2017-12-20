@@ -83,7 +83,7 @@ public class Search {
         System.out.println("Initialize Center1 Solver...");
 
         Center1.initSym();
-         Center1.raw2sym = new int[735471];
+        Center1.raw2sym = new int[735471];
         Center1.initSym2Raw();
         Center1.createMoveTable();
         Center1.raw2sym = null;
@@ -166,37 +166,101 @@ public class Search {
         p1sols.clear();
 
         // java -cp .:threephase.jar:twophase.jar solver DRFDFRUFDURDDLLUFLDLLBLULFBUUFRBLBFLLUDDUFRBURBBRBDLLDURFFBBRUFUFDRFURBUDLDBDUFFBUDRRLDRBLFBRRLB
-        for (length1=Math.min(Math.min(udprun, fbprun), rlprun); length1<100; length1++) {
+        System.out.println("phase1 ud: " + ud);
+        System.out.println("phase1 rl: " + rl);
+        System.out.println("phase1 fb: " + fb);
+        System.out.println("");
 
-            // dwalton add ()s here
-            if (rlprun <= length1 && search1(rl>>>6, rl&0x3f, length1, -1, 0) ||
-                udprun <= length1 && search1(ud>>>6, ud&0x3f, length1, -1, 0) ||
-                fbprun <= length1 && search1(fb>>>6, fb&0x3f, length1, -1, 0)) {
+        System.out.println("phase1 'ct' ud >>> 6: " + (ud >>> 6));
+        System.out.println("phase1 'ct' rl >>> 6: " + (rl >>> 6));
+        System.out.println("phase1 'ct' fb >>> 6: " + (fb >>> 6));
+        System.out.println("");
+
+        System.out.println("phase1 'sym' ud & 0x3f: " + (ud & 0x3f));
+        System.out.println("phase1 'sym' rl & 0x3f: " + (rl & 0x3f));
+        System.out.println("phase1 'sym' fb & 0x3f: " + (fb & 0x3f));
+        System.out.println("");
+
+        System.out.println("phase1 init udprun : " + udprun);
+        System.out.println("phase1 init rlprun : " + rlprun);
+        System.out.println("phase1 init fbprun : " + fbprun);
+        System.out.println("");
+
+        length1 = Math.min(Math.min(udprun, fbprun), rlprun);
+        System.out.println("phase1 init length1: " + length1);
+
+        /* Use the minimum UD/LR/FB prune cost as the starting value for length1.
+         * phase1_search() does a DFS up to length1 moves saving solutions to p1sols along
+         * the way. length1 is then incremented and we do another DFS search to
+         * gather more phase1 solutions.
+         *
+         * We collect solutions until we have found 10000 (aka PHASE1_SOLUTIONS) of them.
+         * Of these 10k solutions we keep the best 500 (aka PHASE2_ATTEMPTS). Once we have
+         * found 10k solutions phase1_search() returns true which is the signal to exit.
+         *
+         * It appears that these solutions are all for solving only one of the three pairs
+         * of sides (so either solves UD, LR or FB)? I do not see how they are taking the
+         * other sides into account as only UD, LR, or FB are being passed to phase1_search().
+         *
+         * One thing really odd here are the "udprun <= length1" checks...these will always
+         * be true as udprun, rlprun, and fbprun are never modified and the initial length1
+         * is set to the minimum of those three values. I'll leave it as is for now...
+         *
+         * Something else to note here, phase1 is to stage the LR centers but this also
+         * checks to see if it would be better to stage UD or FB instead.
+         */
+        while (length1 < 100) {
+
+            if ((rlprun <= length1 && phase1_search(rl >>> 6, rl & 0x3f, length1, -1, 0)) ||
+                (udprun <= length1 && phase1_search(ud >>> 6, ud & 0x3f, length1, -1, 0)) ||
+                (fbprun <= length1 && phase1_search(fb >>> 6, fb & 0x3f, length1, -1, 0))) {
                 break;
             }
+
+            System.out.println("phase1 length1 " + length1 + " found " + p1sols.size() + " solutions (for all length1s)");
+            length1++;
         }
+        // End of phase 1
 
         FullCube[] p1SolsArr = p1sols.toArray(new FullCube[0]);
         Arrays.sort(p1SolsArr, 0, p1SolsArr.length);
+        System.out.println("");
 
+        /* At this point we have 500 of the 'best' phase1 solutions out
+         * of the 10k solutions. These are stored in p1SolsArr.
+         *
+         * Not sure why the do/while is used here...it looks like you could just call
+         * the for loop.
+         */
         int MAX_LENGTH2 = 9;
         int length12;
         do {
+            /* Use the value of the best phase1 solution to initialize length12. I think
+             * 'value' is an estimate of how many moves phase2 will take.
+             *
+             * length12 will increment each time through the loop and will act as a cutoff
+             * on how many moves deep to go on DFS searches.
+             *
+             * Save up to 100 (PHASE2_SOLUTIONS) solutions for phase2, sort them from best
+             * to worst where best is the one that has the lowest phase3 prune table cost.
+             */
             OUT:
-            for (length12=p1SolsArr[0].value; length12<100; length12++) {
-                System.out.print("length12 ");
-                System.out.println(length12);
+            for (length12 = p1SolsArr[0].value; length12 < 100; length12++) {
+                System.out.println("length12: " + length12);
 
-                for (int i=0; i<p1SolsArr.length; i++) {
-                    // System.out.print("i: ");
-                    // System.out.println(i);
+                for (int i=0; i < p1SolsArr.length; i++) {
 
                     if (p1SolsArr[i].value > length12) {
+                        System.out.println("SKIP (value > length12) phase1_solution #" + i + " value " + p1SolsArr[i].value + ", length1 " + p1SolsArr[i].length1);
                         break;
                     }
+
                     if (length12 - p1SolsArr[i].length1 > MAX_LENGTH2) {
+                        System.out.println("SKIP (> MAX_LENGTH2) phase1_solution #" + i + " value " + p1SolsArr[i].value + ", length1 " + p1SolsArr[i].length1);
                         continue;
                     }
+
+                    System.out.println("KEEP phase1_solution #" + i + " value " + p1SolsArr[i].value + ", length1 " + p1SolsArr[i].length1);
                     c1.copy(p1SolsArr[i]);
                     ct2.set(c1.getCenter(), c1.getEdge().getParity());
                     int s2ct = ct2.getct();
@@ -204,14 +268,18 @@ public class Search {
                     length1 = p1SolsArr[i].length1;
                     length2 = length12 - p1SolsArr[i].length1;
 
-                    if (search2(s2ct, s2rl, length2, 28, 0)) {
+                    /* length2 is how many moves deep we are willing to go in search of a phase2 solution.
+                     * phase2_search() returns true once we have 100 (PHASE2_SOLUTIONS) solutions in arr2.
+                     */
+                    if (phase2_search(s2ct, s2rl, length2, 28, 0)) {
+                        System.out.println("phase2_search() is complete for MAX_LENGTH2 " + MAX_LENGTH2 + ", length12 " + length12);
                         break OUT;
                     }
                 }
             }
             MAX_LENGTH2++;
         } while (length12 == 100);
-        // End of phase 1
+        // End of phase 2
 
         Arrays.sort(arr2, 0, arr2idx);
         int length123, index = 0;
@@ -289,34 +357,45 @@ public class Search {
         doSearch();
     }
 
-    // dwalton
-    boolean search1(int ct, int sym, int maxl, int lm, int depth) {
-        System.out.format("search1: ct %d, sym %d, maxl %d, lm %d, depth %d\n", ct, sym, maxl, lm, depth);
+    boolean phase1_search(int ct, int sym, int maxl, int lm, int depth) {
+        // System.out.format("phase1_search: ct %d, sym %d, maxl %d, lm %d, depth %d\n", ct, sym, maxl, lm, depth);
 
-        if (ct==0 && maxl < 5) {
-            return maxl == 0 && init2(sym, lm);
+        if (ct == 0 && maxl < 5) {
+            if (maxl == 0) {
+                return phase1_save_solution(sym, lm);
+            } else {
+                return false;
+            }
         }
 
-        for (int axis=0; axis<27; axis+=3) {
+        for (int axis = 0; axis < 27; axis += 3) {
 
-            if (axis == lm || axis == lm - 9 || axis == lm - 18) {
+            if (axis == lm || axis == (lm - 9) || axis == (lm - 18)) {
                 continue;
             }
 
-            for (int power=0; power<3; power++) {
+            for (int power = 0; power < 3; power++) {
+
                 int m = axis + power;
+
+                // Apply a move to the cube
                 int ctx = ctsmv[ct][symmove[sym][m]];
+
+                // Get the new prun cost
                 int prun = csprun[ctx>>>6];
+
                 if (prun >= maxl) {
                     if (prun > maxl) {
                         break;
                     }
                     continue;
                 }
+
                 int symx = symmult[sym][ctx&0x3f];
                 ctx>>>=6;
                 move1[depth] = m;
-                if (search1(ctx, symx, maxl-1, axis, depth+1)) {
+
+                if (phase1_search(ctx, symx, maxl-1, axis, depth+1)) {
                     return true;
                 }
             }
@@ -324,8 +403,9 @@ public class Search {
         return false;
     }
 
-    boolean init2(int sym, int lm) {
+    boolean phase1_save_solution(int sym, int lm) {
         c1.copy(c);
+
         for (int i=0; i<length1; i++) {
             c1.move(move1[i]);
         }
@@ -351,11 +431,19 @@ public class Search {
             add1 = false;
             sym = 0;
         }
+
         ct2.set(c1.getCenter(), c1.getEdge().getParity());
         int s2ct = ct2.getct();
         int s2rl = ct2.getrl();
-        int ctp = ctprun[s2ct*70+s2rl];
+        int ctp = ctprun[(s2ct * 70) + s2rl];
 
+        /* ctp is used to rank the phase1 solutions so that we keep the
+         * best 500 (PHASE2_ATTEMPTS) of them.
+         *
+         * TODO: what is 'ctp'? I think it is an estimate of how many moves
+         * phase2 will take to solve the centers? Am guessing ctprun is the
+         * centers prune table.
+         */
         c1.value = ctp + length1;
         c1.length1 = length1;
         c1.add1 = add1;
@@ -363,33 +451,42 @@ public class Search {
         p1SolsCnt++;
 
         FullCube next;
+
+        // This is what limits phase1 to 500 solutions
         if (p1sols.size() < PHASE2_ATTEMPTS) {
             next = new FullCube(c1);
         } else {
             next = p1sols.poll();
+
             if (next.value > c1.value) {
                 next.copy(c1);
             }
         }
+
         p1sols.add(next);
 
         return p1SolsCnt == PHASE1_SOLUTIONS;
     }
 
-    boolean search2(int ct, int rl, int maxl, int lm, int depth) {
+    boolean phase2_search(int ct, int rl, int maxl, int lm, int depth) {
+
         if (ct==0 && ctprun[rl] == 0 && maxl == 0) {
-            return maxl == 0 && init3();
+            return maxl == 0 && phase2_save_solution();
         }
+
         for (int m=0; m<23; m++) {
+
             if (ckmv2[lm][m]) {
                 m = skipAxis2[m];
                 continue;
             }
+
             int ctx = ctmv[ct][m];
             int rlx = rlmv[rl][m];
+            int prun = ctprun[(ctx * 70) + rlx];
 
-            int prun = ctprun[ctx * 70 + rlx];
             if (prun >= maxl) {
+                // TODO what is this doing?
                 if (prun > maxl) {
                     m = skipAxis2[m];
                 }
@@ -397,21 +494,28 @@ public class Search {
             }
 
             move2[depth] = move2std[m];
-            if (search2(ctx, rlx, maxl-1, m, depth+1)) {
+
+            if (phase2_search(ctx, rlx, maxl-1, m, depth+1)) {
                 return true;
             }
         }
         return false;
     }
 
-    boolean init3() {
+    boolean phase2_save_solution() {
         c2.copy(c1);
-        for (int i=0; i<length2; i++) {
+
+        // Save the moves that got us here
+        for (int i = 0; i < length2; i++) {
             c2.move(move2[i]);
         }
+
+        // Checks for parity
         if (!c2.checkEdge()) {
             return false;
         }
+
+        // verifying that the edge parity and corner parity are not going to cause PLL?
         int eparity = e12.set(c2.getEdge());
         ct3.set(c2.getCenter(), eparity ^ c2.getCorner().getParity());
         int ct = ct3.getct();
@@ -423,6 +527,10 @@ public class Search {
         } else {
             arr2[arr2idx].copy(c2);
         }
+
+        // dwalton
+        // 'value' is f_cost...cost_to_here + cost_to_goal
+        // for cost_to_goal it is using the phase3 centers and phase3 edge prune tables
         arr2[arr2idx].value = length1 + length2 + Math.max(prun, Center3.prun[ct]);
         arr2[arr2idx].length2 = length2;
         arr2idx++;

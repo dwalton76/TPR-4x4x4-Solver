@@ -7,8 +7,8 @@ import java.util.*;
             0    1
             3    2
 
-20    21        8    9        16    17        12    13
-23    22        11    10        19    18        15    14
+20    21    8    9     16    17     12    13
+23    22   11    10    19    18     15    14
 
             4    5
             7    6
@@ -52,6 +52,7 @@ final class Center1 {
     }
 
     static void createPrun() {
+        System.out.println("Create Phase1 Center Prune Table...");
         Arrays.fill(csprun, (byte)-1);
         csprun[0] = 0;
         int depth = 0;
@@ -62,16 +63,20 @@ final class Center1 {
             int select = inv ? -1 : depth;
             int check = inv ? depth : -1;
             depth++;
+
             for (int i=0; i<15582; i++) {
                 if (csprun[i] != select) {
                     continue;
                 }
+
                 for (int m=0; m<27; m++) {
                     int idx = ctsmv[i][m] >>> 6;
                     if (csprun[idx] != check) {
                         continue;
                     }
+
                     ++done;
+
                     if (inv) {
                         csprun[i] = (byte) depth;
                         break;
@@ -82,7 +87,6 @@ final class Center1 {
             }
 //            System.out.println(String.format("%2d%10d", depth, done));
         }
-
     }
 
     static void createMoveTable() {
