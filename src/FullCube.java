@@ -1,19 +1,19 @@
 /*
-Edge Cubies: 
-                    14    2    
+Edge Cubies:
+                    14    2
                 1            15
                 13            3
-                    0    12    
-    1    13            0    12            3    15            2    14    
+                    0    12
+    1    13            0    12            3    15            2    14
 9            20    20            11    11            22    22            9
 21            8    8            23    23            10    10            21
-    17    5            18    6            19    7            16    4    
-                    18    6    
+    17    5            18    6            19    7            16    4
+                    18    6
                 5            19
                 17            7
-                    4    16    
+                    4    16
 
-Center Cubies: 
+Center Cubies:
             0    1
             3    2
 
@@ -89,7 +89,7 @@ public class FullCube implements Comparable<FullCube> {
 
     static final byte[] centerFacelet = {u5, u6, ua, u9, d5, d6, da, d9, f5, f6, fa, f9, b5, b6, ba, b9, r5, r6, ra, r9, l5, l6, la, l9};
     static final byte[][] edgeFacelet = {
-        {ud, f1}, {u4, l1}, {u2, b1}, {ub, r1}, {dd, be}, {d4, le}, {d2, fe}, {db, re}, {lb, f8}, {l4, b7}, {rb, b8}, {r4, f7}, 
+        {ud, f1}, {u4, l1}, {u2, b1}, {ub, r1}, {dd, be}, {d4, le}, {d2, fe}, {db, re}, {lb, f8}, {l4, b7}, {rb, b8}, {r4, f7},
         {f2, ue}, {l2, u8}, {b2, u1}, {r2, u7}, {bd, de}, {ld, d8}, {fd, d1}, {rd, d7}, {f4, l7}, {bb, l8}, {b4, r7}, {fb, r8}};
     static final byte[][] cornerFacelet = { { uf, r0, f3 }, { uc, f0, l3 }, { u0, l0, b3 }, { u3, b0, r3 },
             { d3, ff, rc }, { d0, lf, fc }, { dc, bf, lc }, { df, rf, bc } };
@@ -254,7 +254,7 @@ public class FullCube implements Comparable<FullCube> {
             }
         }
         int finishSym = symmult[syminv[sym]][Center1.getSolvedSym(getCenter())];
-        
+
         StringBuffer sb = new StringBuffer();
         sym = finishSym;
         if (inverse) {
@@ -282,9 +282,9 @@ public class FullCube implements Comparable<FullCube> {
         }
         return sb.toString().replaceAll("\\s+", " ");
     }
-    
+
     private static int[] move2rot = {35, 1, 34, 2, 4, 6, 22, 5, 19};
-     
+
     String to333Facelet() {
         char[] ret = new char[54];
         getEdge().fill333Facelet(ret);
@@ -292,40 +292,40 @@ public class FullCube implements Comparable<FullCube> {
         getCorner().fill333Facelet(ret);
         return new String(ret);
     }
-    
+
     byte[] moveBuffer = new byte[60];
     private int moveLength = 0;
     private int edgeAvail = 0;
     private int centerAvail = 0;
     private int cornerAvail = 0;
-    
+
     int sym = 0;
 
     void move(int m) {
         moveBuffer[moveLength++] = (byte)m;
         return;
     }
-    
+
     void doMove(int m) {
         getEdge().move(m);
         getCenter().move(m);
-        getCorner().move(m % 18);    
+        getCorner().move(m % 18);
     }
-    
+
     EdgeCube getEdge() {
         while (edgeAvail < moveLength) {
             edge.move(moveBuffer[edgeAvail++]);
         }
         return edge;
     }
-    
+
     CenterCube getCenter() {
         while (centerAvail < moveLength) {
             center.move(moveBuffer[centerAvail++]);
         }
         return center;
     }
-    
+
     CornerCube getCorner() {
         while (cornerAvail < moveLength) {
             corner.move(moveBuffer[cornerAvail++] % 18);

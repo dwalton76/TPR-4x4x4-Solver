@@ -139,7 +139,7 @@ class Util {
         }
         arr[7] = (byte)val;
     }
-    
+
     static int parity(byte[] arr) {
         int parity = 0;
         for (int i=0, len=arr.length; i<len; i++) {

@@ -22,7 +22,7 @@ public class Tools {
             for (int j=0, len=arr[i].length; j<len; j++) {
                 arr[i][j] = in.readInt();
             }
-        }    
+        }
     }
 
     private static void write(int[][] arr, DataOutput out) throws IOException {
@@ -30,7 +30,7 @@ public class Tools {
             for (int j=0, len=arr[i].length; j<len; j++) {
                 out.writeInt(arr[i][j]);
             }
-        }    
+        }
     }
 
     static Random r = new Random();
@@ -76,7 +76,7 @@ public class Tools {
         Edge3.initRaw2Sym();
         read(Edge3.eprun, in);
 
-        System.out.println("OK");        
+        System.out.println("OK");
 
         Search.inited = true;
     }

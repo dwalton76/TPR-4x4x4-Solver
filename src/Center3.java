@@ -20,23 +20,23 @@ class Center3 {
 
     static char[][] ctmove = new char[35*35*12*2][20];
     static int[] pmove = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
-    
+
     static byte[] prun = new byte[35*35*12*2];
-    
+
     static int[] rl2std = {0, 9, 14, 23, 27, 28, 41, 42, 46, 55, 60, 69};
     static int[] std2rl = new int[70];
-    
+
 
     int[] ud = new int[8];
     int[] rl = new int[8];
     int[] fb = new int[8];
     int parity = 0;
-    
+
     static void init() {
         for (int i=0; i<12; i++) {
             std2rl[rl2std[i]] = i;
         }
-        
+
         Center3 c = new Center3();
         for (int i=0; i<35*35*12*2; i++) {
             for (int m=0; m<20; m++) {
@@ -66,7 +66,7 @@ class Center3 {
             // System.out.println(String.format("%2d%10d", depth, done));
         }
     }
-    
+
     void set(CenterCube c, int eXc_parity) {
         int parity = (c.ct[0]%3>c.ct[8]%3 ^ c.ct[8]%3>c.ct[16]%3 ^ c.ct[0]%3>c.ct[16]%3) ? 0 : 1;
         for (int i=0; i<8; i++) {
@@ -76,7 +76,7 @@ class Center3 {
         }
         this.parity = parity ^ eXc_parity;
     }
-    
+
     int getct() {
         int idx = 0;
         int r = 4;
@@ -103,7 +103,7 @@ class Center3 {
         }
         return parity + 2 * (idx + std2rl[idxrl]);
     }
-    
+
     void setct(int idx) {
         parity = idx & 1;
         idx >>>= 1;
@@ -116,7 +116,7 @@ class Center3 {
                 idxrl -= Cnk[i][r--];
                 rl[i] = 1;
             }
-        }        
+        }
         int idxfb = idx % 35;
         idx /= 35;
         r = 4;
@@ -146,7 +146,7 @@ class Center3 {
         switch (i) {
         case 0:        //U
         case 1:        //U2
-        case 2:        //U'    
+        case 2:        //U'
             swap(ud, 0, 1, 2, 3, i%3);
             break;
         case 3:        //R2
@@ -199,7 +199,7 @@ class Center3 {
             swap(fb, 4, 5, 6, 7, 1);
             swap(ud, 0, 7, 6, 1, 1);
             swap(rl, 1, 4, 7, 2, 1);
-            break;        
+            break;
         }
     }
 }

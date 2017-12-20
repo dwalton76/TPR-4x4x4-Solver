@@ -46,7 +46,7 @@ public class Search {
     int[] move3 = new int[20];
     int length1 = 0;
     int length2 = 0;
-    int maxlength2;    
+    int maxlength2;
     boolean add1 = false;
     public FullCube c;
     FullCube c1 = new FullCube();
