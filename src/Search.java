@@ -165,10 +165,13 @@ public class Search {
 		arr2idx = 0;
 		p1sols.clear();
 
+        // java -cp .:threephase.jar:twophase.jar solver DRFDFRUFDURDDLLUFLDLLBLULFBUUFRBLBFLLUDDUFRBURBBRBDLLDURFFBBRUFUFDRFURBUDLDBDUFFBUDRRLDRBLFBRRLB
 		for (length1=Math.min(Math.min(udprun, fbprun), rlprun); length1<100; length1++) {
-			if (rlprun <= length1 && search1(rl>>>6, rl&0x3f, length1, -1, 0) 
-					|| udprun <= length1 && search1(ud>>>6, ud&0x3f, length1, -1, 0)
-					|| fbprun <= length1 && search1(fb>>>6, fb&0x3f, length1, -1, 0)) {
+
+            // dwalton add ()s here
+			if (rlprun <= length1 && search1(rl>>>6, rl&0x3f, length1, -1, 0) ||
+                udprun <= length1 && search1(ud>>>6, ud&0x3f, length1, -1, 0) ||
+                fbprun <= length1 && search1(fb>>>6, fb&0x3f, length1, -1, 0)) {
 				break;
 			}
 		}
@@ -181,7 +184,13 @@ public class Search {
 		do {
 			OUT:
 			for (length12=p1SolsArr[0].value; length12<100; length12++) {
+		        System.out.print("length12 ");
+		        System.out.println(length12);
+
 				for (int i=0; i<p1SolsArr.length; i++) {
+		            // System.out.print("i: ");
+		            // System.out.println(i);
+
 					if (p1SolsArr[i].value > length12) {
 						break;
 					}
@@ -202,6 +211,8 @@ public class Search {
 			}
 			MAX_LENGTH2++;
 		} while (length12 == 100);
+        // End of phase 1
+
 		Arrays.sort(arr2, 0, arr2idx);
 		int length123, index = 0;
 		int solcnt = 0;
@@ -224,7 +235,7 @@ public class Search {
 					int prun = Edge3.getprun(e12.getsym());
 					int lm = 20;
 
-					if (prun <= length123 - arr2[i].length1 - arr2[i].length2 
+					if (prun <= length123 - arr2[i].length1 - arr2[i].length2
 							&& search3(edge, ct, prun, length123 - arr2[i].length1 - arr2[i].length2, lm, 0)) {
 						solcnt++;
 	//					if (solcnt == 5) {
@@ -240,12 +251,17 @@ public class Search {
 		FullCube solcube = new FullCube(arr2[index]);
 		length1 = solcube.length1;
 		length2 = solcube.length2;
-		int length = length123 - length1 - length2;
+		int length3 = length123 - length1 - length2;
 
-		for (int i=0; i<length; i++) {
+		for (int i=0; i<length3; i++) {
 			solcube.move(move3std[move3[i]]);
 		}
+        // cube is now reduced to 3x3x3
 
+
+        // disable solving 3x3x3 for now...
+        /*
+        // solve 3x3x3
 		String facelet = solcube.to333Facelet();
 		String sol = search333.solution(facelet, 21, 1000000, 500, 0);
 		int len333 = search333.length();
@@ -259,10 +275,13 @@ public class Search {
 		for (int i=0; i<sol333.length; i++) {
 			solcube.move(sol333[i]);
 		}
+        */
 
 		solution = solcube.getMoveString(inverse_solution, with_rotation);
 
-		totlen = length1 + length2 + length + len333;
+		//totlen = length1 + length2 + length3 + len333;
+		totlen = length1 + length2 + length3;
+		System.out.format("phase1 %d moves, phase2 %d moves, phase3 %d moves, total %d moves\n", length1, length2, length3, totlen);
 	}
 
 	public void calc(FullCube s) {
@@ -270,14 +289,20 @@ public class Search {
 		doSearch();
 	}
 
+    // dwalton
 	boolean search1(int ct, int sym, int maxl, int lm, int depth) {
+		System.out.format("search1: ct %d, sym %d, maxl %d, lm %d, depth %d\n", ct, sym, maxl, lm, depth);
+
 		if (ct==0 && maxl < 5) {
 			return maxl == 0 && init2(sym, lm);
 		}
+
 		for (int axis=0; axis<27; axis+=3) {
+
 			if (axis == lm || axis == lm - 9 || axis == lm - 18) {
 				continue;
 			}
+
 			for (int power=0; power<3; power++) {
 				int m = axis + power;
 				int ctx = ctsmv[ct][symmove[sym][m]];
@@ -322,7 +347,7 @@ public class Search {
 			add1 = true;
 			sym = 34;
 			break;
-		case 735470 : 
+		case 735470 :
 			add1 = false;
 			sym = 0;
 		}

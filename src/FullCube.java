@@ -280,7 +280,7 @@ public class FullCube implements Comparable<FullCube> {
 				sb.append(Center1.rot2str[finishSym]);//cube rotation after solution.
 			}
 		}
-		return sb.toString();
+		return sb.toString().replaceAll("\\s+", " ");
 	}
 	
 	private static int[] move2rot = {35, 1, 34, 2, 4, 6, 22, 5, 19};
