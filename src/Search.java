@@ -151,6 +151,231 @@ public class Search {
 
     int totlen = 0;
 
+    boolean phase1_save_solution(int sym, int lm) {
+        c1.copy(c);
+
+        for (int i=0; i<length1; i++) {
+            c1.move(move1[i]);
+        }
+
+        switch (Center1.finish[sym]) {
+        case 0 :
+            c1.move(fx1);
+            c1.move(bx3);
+            move1[length1] = fx1;
+            move1[length1+1] = bx3;
+            add1 = true;
+            sym = 19;
+            break;
+        case 12869 :
+            c1.move(ux1);
+            c1.move(dx3);
+            move1[length1] = ux1;
+            move1[length1+1] = dx3;
+            add1 = true;
+            sym = 34;
+            break;
+        case 735470 :
+            add1 = false;
+            sym = 0;
+        }
+
+        ct2.set(c1.getCenter(), c1.getEdge().getParity());
+        int s2ct = ct2.getct();
+        int s2rl = ct2.getrl();
+        int ctp = ctprun[(s2ct * 70) + s2rl];
+
+        /* ctp is used to rank the phase1 solutions so that we keep the
+         * best 500 (PHASE2_ATTEMPTS) of them.
+         *
+         * TODO: what is 'ctp'? I think it is an estimate of how many moves
+         * phase2 will take to solve the centers? Am guessing ctprun is the
+         * centers prune table.
+         */
+        c1.value = ctp + length1;
+        c1.length1 = length1;
+        c1.add1 = add1;
+        c1.sym = sym;
+        p1SolsCnt++;
+
+        FullCube next;
+
+        // This is what limits phase1 to 500 solutions
+        if (p1sols.size() < PHASE2_ATTEMPTS) {
+            next = new FullCube(c1);
+        } else {
+            next = p1sols.poll();
+
+            if (next.value > c1.value) {
+                next.copy(c1);
+            }
+        }
+
+        p1sols.add(next);
+
+        return p1SolsCnt == PHASE1_SOLUTIONS;
+    }
+
+    boolean phase1_search(int ct, int sym, int maxl, int lm, int depth) {
+        // System.out.format("phase1_search: ct %d, sym %d, maxl %d, lm %d, depth %d\n", ct, sym, maxl, lm, depth);
+
+        if (ct == 0 && maxl < 5) {
+            if (maxl == 0) {
+                return phase1_save_solution(sym, lm);
+            } else {
+                return false;
+            }
+        }
+
+        for (int axis = 0; axis < 27; axis += 3) {
+
+            if (axis == lm || axis == (lm - 9) || axis == (lm - 18)) {
+                continue;
+            }
+
+            for (int power = 0; power < 3; power++) {
+
+                int m = axis + power;
+
+                // Apply a move to the cube
+                int ctx = ctsmv[ct][symmove[sym][m]];
+
+                // Get the new prun cost
+                int prun = csprun[ctx>>>6];
+
+                if (prun >= maxl) {
+                    if (prun > maxl) {
+                        break;
+                    }
+                    continue;
+                }
+
+                int symx = symmult[sym][ctx&0x3f];
+                ctx>>>=6;
+                move1[depth] = m;
+
+                if (phase1_search(ctx, symx, maxl-1, axis, depth+1)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    boolean phase2_save_solution() {
+        c2.copy(c1);
+
+        // Save the moves that got us here
+        for (int i = 0; i < length2; i++) {
+            c2.move(move2[i]);
+        }
+
+        // Checks for parity
+        if (!c2.checkEdge()) {
+            return false;
+        }
+
+        // verifying that the edge parity and corner parity are not going to cause PLL?
+        int eparity = e12.set(c2.getEdge());
+        ct3.set(c2.getCenter(), eparity ^ c2.getCorner().getParity());
+        int ct = ct3.getct();
+        int edge = e12.get(10);
+        int prun = Edge3.getprun(e12.getsym());
+
+        if (arr2[arr2idx] == null) {
+            arr2[arr2idx] = new FullCube(c2);
+        } else {
+            arr2[arr2idx].copy(c2);
+        }
+
+        // dwalton
+        // 'value' is f_cost...cost_to_here + cost_to_goal
+        // for cost_to_goal it is using the phase3 centers and phase3 edge prune tables
+        arr2[arr2idx].value = length1 + length2 + Math.max(prun, Center3.prun[ct]);
+        arr2[arr2idx].length2 = length2;
+        arr2idx++;
+
+        return arr2idx == arr2.length;
+    }
+
+    boolean phase2_search(int ct, int rl, int maxl, int lm, int depth) {
+
+        if (ct==0 && ctprun[rl] == 0 && maxl == 0) {
+            return maxl == 0 && phase2_save_solution();
+        }
+
+        for (int m=0; m<23; m++) {
+
+            if (ckmv2[lm][m]) {
+                m = skipAxis2[m];
+                continue;
+            }
+
+            int ctx = ctmv[ct][m];
+            int rlx = rlmv[rl][m];
+            int prun = ctprun[(ctx * 70) + rlx];
+
+            if (prun >= maxl) {
+                // TODO what is this doing?
+                if (prun > maxl) {
+                    m = skipAxis2[m];
+                }
+                continue;
+            }
+
+            move2[depth] = move2std[m];
+
+            if (phase2_search(ctx, rlx, maxl-1, m, depth+1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean phase3_search(int edge, int ct, int prun, int maxl, int lm, int depth) {
+
+        if (maxl == 0) {
+            return edge == 0 && ct == 0;
+        }
+
+        tempe[depth].set(edge);
+        for (int m=0; m<17; m++) {
+            if (ckmv3[lm][m]) {
+                m = skipAxis3[m];
+                continue;
+            }
+            int ctx = Center3.ctmove[ct][m];
+            int prun1 = Center3.prun[ctx];
+            if (prun1 >= maxl) {
+                if (prun1 > maxl && m < 14) {
+                    m = skipAxis3[m];
+                }
+                continue;
+            }
+            int edgex = Edge3.getmvrot(tempe[depth].edge, m<<3, 10);
+
+            int cord1x = edgex / Edge3.N_RAW;
+            int symcord1x = Edge3.raw2sym[cord1x];
+            int symx = symcord1x & 0x7;
+            symcord1x >>= 3;
+            int cord2x = Edge3.getmvrot(tempe[depth].edge, m<<3|symx, 10) % Edge3.N_RAW;
+
+            int prunx = Edge3.getprun(symcord1x * Edge3.N_RAW + cord2x, prun);
+            if (prunx >= maxl) {
+                if (prunx > maxl && m < 14) {
+                    m = skipAxis3[m];
+                }
+                continue;
+            }
+
+            if (phase3_search(edgex, ctx, prunx, maxl - 1, m, depth + 1)) {
+                move3[depth] = m;
+                return true;
+            }
+        }
+        return false;
+    }
+
     void doSearch() {
         init();
         solution = "";
@@ -251,7 +476,9 @@ public class Search {
                 for (int i=0; i < p1SolsArr.length; i++) {
 
                     if (p1SolsArr[i].value > length12) {
-                        System.out.println("SKIP (value > length12) phase1_solution #" + i + " value " + p1SolsArr[i].value + ", length1 " + p1SolsArr[i].length1);
+                        //System.out.println("BREAK(value > length12) phase1_solution #" + i + " value " + p1SolsArr[i].value + ", length1 " + p1SolsArr[i].length1 + "\n");
+                        System.out.println(String.format("BREAK(value %d > length12 %d): phase1_solution #%d value %s, length1 %d\n",
+                            p1SolsArr[i].value, length12, i, p1SolsArr[i].value, length1));
                         break;
                     }
 
@@ -260,7 +487,7 @@ public class Search {
                         continue;
                     }
 
-                    System.out.println("KEEP phase1_solution #" + i + " value " + p1SolsArr[i].value + ", length1 " + p1SolsArr[i].length1);
+                    // System.out.println("KEEP phase1_solution #" + i + " value " + p1SolsArr[i].value + ", length1 " + p1SolsArr[i].length1);
                     c1.copy(p1SolsArr[i]);
                     ct2.set(c1.getCenter(), c1.getEdge().getParity());
                     int s2ct = ct2.getct();
@@ -304,7 +531,7 @@ public class Search {
                     int lm = 20;
 
                     if (prun <= length123 - arr2[i].length1 - arr2[i].length2
-                            && search3(edge, ct, prun, length123 - arr2[i].length1 - arr2[i].length2, lm, 0)) {
+                            && phase3_search(edge, ct, prun, length123 - arr2[i].length1 - arr2[i].length2, lm, 0)) {
                         solcnt++;
     //                    if (solcnt == 5) {
                             index = i;
@@ -355,228 +582,5 @@ public class Search {
     public void calc(FullCube s) {
         c = s;
         doSearch();
-    }
-
-    boolean phase1_search(int ct, int sym, int maxl, int lm, int depth) {
-        // System.out.format("phase1_search: ct %d, sym %d, maxl %d, lm %d, depth %d\n", ct, sym, maxl, lm, depth);
-
-        if (ct == 0 && maxl < 5) {
-            if (maxl == 0) {
-                return phase1_save_solution(sym, lm);
-            } else {
-                return false;
-            }
-        }
-
-        for (int axis = 0; axis < 27; axis += 3) {
-
-            if (axis == lm || axis == (lm - 9) || axis == (lm - 18)) {
-                continue;
-            }
-
-            for (int power = 0; power < 3; power++) {
-
-                int m = axis + power;
-
-                // Apply a move to the cube
-                int ctx = ctsmv[ct][symmove[sym][m]];
-
-                // Get the new prun cost
-                int prun = csprun[ctx>>>6];
-
-                if (prun >= maxl) {
-                    if (prun > maxl) {
-                        break;
-                    }
-                    continue;
-                }
-
-                int symx = symmult[sym][ctx&0x3f];
-                ctx>>>=6;
-                move1[depth] = m;
-
-                if (phase1_search(ctx, symx, maxl-1, axis, depth+1)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    boolean phase1_save_solution(int sym, int lm) {
-        c1.copy(c);
-
-        for (int i=0; i<length1; i++) {
-            c1.move(move1[i]);
-        }
-
-        switch (Center1.finish[sym]) {
-        case 0 :
-            c1.move(fx1);
-            c1.move(bx3);
-            move1[length1] = fx1;
-            move1[length1+1] = bx3;
-            add1 = true;
-            sym = 19;
-            break;
-        case 12869 :
-            c1.move(ux1);
-            c1.move(dx3);
-            move1[length1] = ux1;
-            move1[length1+1] = dx3;
-            add1 = true;
-            sym = 34;
-            break;
-        case 735470 :
-            add1 = false;
-            sym = 0;
-        }
-
-        ct2.set(c1.getCenter(), c1.getEdge().getParity());
-        int s2ct = ct2.getct();
-        int s2rl = ct2.getrl();
-        int ctp = ctprun[(s2ct * 70) + s2rl];
-
-        /* ctp is used to rank the phase1 solutions so that we keep the
-         * best 500 (PHASE2_ATTEMPTS) of them.
-         *
-         * TODO: what is 'ctp'? I think it is an estimate of how many moves
-         * phase2 will take to solve the centers? Am guessing ctprun is the
-         * centers prune table.
-         */
-        c1.value = ctp + length1;
-        c1.length1 = length1;
-        c1.add1 = add1;
-        c1.sym = sym;
-        p1SolsCnt++;
-
-        FullCube next;
-
-        // This is what limits phase1 to 500 solutions
-        if (p1sols.size() < PHASE2_ATTEMPTS) {
-            next = new FullCube(c1);
-        } else {
-            next = p1sols.poll();
-
-            if (next.value > c1.value) {
-                next.copy(c1);
-            }
-        }
-
-        p1sols.add(next);
-
-        return p1SolsCnt == PHASE1_SOLUTIONS;
-    }
-
-    boolean phase2_search(int ct, int rl, int maxl, int lm, int depth) {
-
-        if (ct==0 && ctprun[rl] == 0 && maxl == 0) {
-            return maxl == 0 && phase2_save_solution();
-        }
-
-        for (int m=0; m<23; m++) {
-
-            if (ckmv2[lm][m]) {
-                m = skipAxis2[m];
-                continue;
-            }
-
-            int ctx = ctmv[ct][m];
-            int rlx = rlmv[rl][m];
-            int prun = ctprun[(ctx * 70) + rlx];
-
-            if (prun >= maxl) {
-                // TODO what is this doing?
-                if (prun > maxl) {
-                    m = skipAxis2[m];
-                }
-                continue;
-            }
-
-            move2[depth] = move2std[m];
-
-            if (phase2_search(ctx, rlx, maxl-1, m, depth+1)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    boolean phase2_save_solution() {
-        c2.copy(c1);
-
-        // Save the moves that got us here
-        for (int i = 0; i < length2; i++) {
-            c2.move(move2[i]);
-        }
-
-        // Checks for parity
-        if (!c2.checkEdge()) {
-            return false;
-        }
-
-        // verifying that the edge parity and corner parity are not going to cause PLL?
-        int eparity = e12.set(c2.getEdge());
-        ct3.set(c2.getCenter(), eparity ^ c2.getCorner().getParity());
-        int ct = ct3.getct();
-        int edge = e12.get(10);
-        int prun = Edge3.getprun(e12.getsym());
-
-        if (arr2[arr2idx] == null) {
-            arr2[arr2idx] = new FullCube(c2);
-        } else {
-            arr2[arr2idx].copy(c2);
-        }
-
-        // dwalton
-        // 'value' is f_cost...cost_to_here + cost_to_goal
-        // for cost_to_goal it is using the phase3 centers and phase3 edge prune tables
-        arr2[arr2idx].value = length1 + length2 + Math.max(prun, Center3.prun[ct]);
-        arr2[arr2idx].length2 = length2;
-        arr2idx++;
-
-        return arr2idx == arr2.length;
-    }
-
-    public boolean search3(int edge, int ct, int prun, int maxl, int lm, int depth) {
-        if (maxl == 0) {
-            return edge == 0 && ct == 0;
-        }
-        tempe[depth].set(edge);
-        for (int m=0; m<17; m++) {
-            if (ckmv3[lm][m]) {
-                m = skipAxis3[m];
-                continue;
-            }
-            int ctx = Center3.ctmove[ct][m];
-            int prun1 = Center3.prun[ctx];
-            if (prun1 >= maxl) {
-                if (prun1 > maxl && m < 14) {
-                    m = skipAxis3[m];
-                }
-                continue;
-            }
-            int edgex = Edge3.getmvrot(tempe[depth].edge, m<<3, 10);
-
-            int cord1x = edgex / Edge3.N_RAW;
-            int symcord1x = Edge3.raw2sym[cord1x];
-            int symx = symcord1x & 0x7;
-            symcord1x >>= 3;
-            int cord2x = Edge3.getmvrot(tempe[depth].edge, m<<3|symx, 10) % Edge3.N_RAW;
-
-            int prunx = Edge3.getprun(symcord1x * Edge3.N_RAW + cord2x, prun);
-            if (prunx >= maxl) {
-                if (prunx > maxl && m < 14) {
-                    m = skipAxis3[m];
-                }
-                continue;
-            }
-
-            if (search3(edgex, ctx, prunx, maxl - 1, m, depth + 1)) {
-                move3[depth] = m;
-                return true;
-            }
-        }
-        return false;
     }
 }
