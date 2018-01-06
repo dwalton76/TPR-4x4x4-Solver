@@ -150,6 +150,7 @@ public class Search {
     }
 
     int totlen = 0;
+    int phase2_search_calls = 0;
 
     boolean phase1_save_solution(int sym, int lm) {
         c1.copy(c);
@@ -299,6 +300,7 @@ public class Search {
     }
 
     boolean phase2_search(int ct, int rl, int maxl, int lm, int depth) {
+        phase2_search_calls++;
 
         if (ct==0 && ctprun[rl] == 0 && maxl == 0) {
             return maxl == 0 && phase2_save_solution();
@@ -494,13 +496,19 @@ public class Search {
                     int s2rl = ct2.getrl();
                     length1 = p1SolsArr[i].length1;
                     length2 = length12 - p1SolsArr[i].length1;
+                    phase2_search_calls = 0;
 
                     /* length2 is how many moves deep we are willing to go in search of a phase2 solution.
                      * phase2_search() returns true once we have 100 (PHASE2_SOLUTIONS) solutions in arr2.
                      */
                     if (phase2_search(s2ct, s2rl, length2, 28, 0)) {
+                        System.out.println(String.format("WON : phase1_solution #%d (length1 %d, length2 %d, value %d) used %d phase2_search() calls",
+                            i, length1, length2, p1SolsArr[i].value, phase2_search_calls));
                         System.out.println("phase2_search() is complete for MAX_LENGTH2 " + MAX_LENGTH2 + ", length12 " + length12);
                         break OUT;
+                    } else {
+                        System.out.println(String.format("LOST: phase1_solution #%d (length1 %d, length2 %d, value %d) used %d phase2_search() calls",
+                            i, length1, length2, p1SolsArr[i].value, phase2_search_calls));
                     }
                 }
             }

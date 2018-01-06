@@ -212,7 +212,8 @@ class Moves {
 
     static int[] move2std = {Ux1, Ux2, Ux3, Rx1, Rx2, Rx3, Fx1, Fx2, Fx3,
                              Dx1, Dx2, Dx3, Lx1, Lx2, Lx3, Bx1, Bx2, Bx3,
-                             ux2, rx1, rx2, rx3, fx2, dx2, lx1, lx2, lx3, bx2, eom};
+                             ux2, rx1, rx2, rx3, fx2, // fx2 is the 22nd entry...this is the last one used by the phase2 search
+                             dx2, lx1, lx2, lx3, bx2, eom};
 
     static int[] move3std = {Ux1, Ux2, Ux3, Rx2, Fx1, Fx2, Fx3, Dx1, Dx2, Dx3, Lx2, Bx1, Bx2, Bx3,
                              ux2, rx2, fx2, dx2, lx2, bx2, eom};
